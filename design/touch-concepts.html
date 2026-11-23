@@ -1,0 +1,262 @@
+<title>Touch Control Concepts</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&family=Silkscreen&display=swap">
+<style>
+/* Layout: icon sheet first (the new artwork), then the 20:9 phone mock-up with the chosen layout,
+   frame-style picker above both. Single dark look on purpose: it is a game HUD. */
+:root {
+  --bg: #0b0c14;
+  --panel: #151729;
+  --line: #2b3170;
+  --hud-blue: #6f7dff;
+  --hud-orange: #ff8a1e;
+  --hud-yellow: #ffd21f;
+  --fg: #e7e8f2;
+  --muted: #9a9cb8;
+  --display: "Chakra Petch", "Arial Narrow", system-ui, sans-serif;
+  --pixel: "Silkscreen", ui-monospace, monospace;
+  color-scheme: dark;
+}
+html, body { background: var(--bg); color: var(--fg); }
+body { font-family: var(--display); font-size: 15px; line-height: 1.5; }
+.wrap { max-width: 1180px; margin: 0 auto; padding-block: 28px 56px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+h1 { font-size: clamp(26px, 4vw, 40px); line-height: 1.1; margin: 0 0 6px; letter-spacing: .02em; text-wrap: balance; }
+h1 b { color: var(--hud-orange); }
+.lede { color: var(--muted); max-width: 72ch; margin: 0 0 22px; }
+h2 { font-family: var(--pixel); font-weight: 400; font-size: 13px; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--hud-blue); margin: 28px 0 10px; }
+.seg { display: flex; flex-wrap: wrap; gap: 8px; }
+.seg button { font: 600 14px var(--display); color: var(--fg); background: var(--panel); border: 2px solid var(--line);
+  padding: 8px 14px; cursor: pointer; clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px); }
+.seg button[aria-pressed="true"] { border-color: var(--hud-orange); color: var(--hud-orange); background: #23180c; }
+.seg button:focus-visible { outline: 2px solid var(--hud-yellow); outline-offset: 2px; }
+.seg small { display: block; font: 400 11px var(--pixel); color: var(--muted); letter-spacing: .04em; }
+.sheet { display: grid; grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); gap: 12px; }
+.cell { background: radial-gradient(circle at 50% 40%, #3a2f45 0%, #17141f 75%); border: 1px solid var(--line);
+  padding: 10px 6px 8px; text-align: center; min-width: 0; }
+.cell svg { width: 100%; max-width: 120px; height: auto; display: block; margin: 0 auto; }
+.cell b { display: block; font: 400 11px var(--pixel); color: var(--hud-yellow); letter-spacing: .04em; margin-top: 4px; }
+.cell span { display: block; font-size: 12px; color: var(--muted); }
+.cell.new { border-color: var(--hud-orange); }
+.stage { position: relative; border: 2px solid var(--line); background: #000; max-width: 100%; }
+.stage svg { display: block; width: 100%; height: auto; touch-action: none; user-select: none; -webkit-user-select: none; }
+.hint { font: 400 12px var(--pixel); color: var(--hud-yellow); margin: 8px 0 0; letter-spacing: .04em; }
+.how { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 18px; }
+@media (max-width: 900px) { .how { grid-template-columns: 1fr; } }
+.how div { background: var(--panel); border: 1px solid var(--line); padding: 12px 14px; min-width: 0; }
+.how h3 { margin: 0 0 4px; font-size: 16px; }
+.how p { margin: 0; color: var(--muted); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<div class="wrap">
+  <h1>New touch buttons, <b>icons and frames</b></h1>
+  <p class="lede">New artwork for every button: shaded, outlined icons in the HUD colours, shown inside each of the three frame
+  styles. The layout follows your pick: NEXT power-up lives permanently beside USE, and a BUY coin fans out the three
+  upgrades only when you press it. Choose a frame below; the icon sheet and the mock-up update together.</p>
+
+  <h2>Frame style</h2>
+  <div class="seg" id="styles" role="group" aria-label="Frame style"></div>
+
+  <h2>Icon sheet</h2>
+  <div class="sheet" id="sheet"></div>
+
+  <h2>In a race (20:9 phone)</h2>
+  <div class="stage"><svg id="scr" viewBox="0 0 2000 900" role="img" aria-label="Phone screen mock-up with the new touch controls"></svg></div>
+  <p class="hint" id="hint">Press the gold BUY coin on the mock-up: the three upgrades fan out. Slide onto one and let go to buy it, or tap the coin and then tap an upgrade.</p>
+
+  <div class="how">
+    <div><h3>NEXT beside USE</h3><p>Always visible, small, tucked against the top-right of USE so one thumb can roll between them. Same as the [ ] keys.</p></div>
+    <div><h3>BUY fans out</h3><p>Hold the coin and slide to Armour, Power or Offensive, or tap the coin then tap. The fan closes after a buy, a tap elsewhere, or 3 seconds.</p></div>
+    <div><h3>Gamepad</h3><p>All touch buttons hide while a controller is in use and come back on the next touch.</p></div>
+  </div>
+</div>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="gM" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f6f8ff"/><stop offset=".45" stop-color="#aeb6c8"/><stop offset="1" stop-color="#555d70"/></linearGradient>
+    <linearGradient id="gO" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe08a"/><stop offset=".5" stop-color="#ff8a1e"/><stop offset="1" stop-color="#a84300"/></linearGradient>
+    <linearGradient id="gG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d4ffbd"/><stop offset=".5" stop-color="#46d45e"/><stop offset="1" stop-color="#0f6e26"/></linearGradient>
+    <linearGradient id="gR" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffc0b5"/><stop offset=".5" stop-color="#ff4a3a"/><stop offset="1" stop-color="#7d1006"/></linearGradient>
+    <linearGradient id="gY" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff6c2"/><stop offset=".5" stop-color="#ffcc2a"/><stop offset="1" stop-color="#9a5f00"/></linearGradient>
+    <linearGradient id="gK" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4a4f5e"/><stop offset="1" stop-color="#15171f"/></linearGradient>
+    <linearGradient id="steel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5d636e" stop-opacity=".85"/>
+      <stop offset=".5" stop-color="#30343c" stop-opacity=".8"/><stop offset="1" stop-color="#16181d" stop-opacity=".85"/></linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <filter id="drop" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="3" stdDeviation="1.5" flood-color="#000" flood-opacity=".7"/></filter>
+  </defs>
+</svg>
+
+<script>
+/* ---------- icon artwork, 100x100 box; K = dark outline ---------- */
+const K = 'stroke="#0b0d1a" stroke-width="4.5" stroke-linejoin="round"';
+const tag = (t) => `<g><rect x="62" y="64" width="32" height="30" rx="5" fill="url(#gO)" ${K}/>
+  <text x="78" y="87" font-size="22" text-anchor="middle" fill="#1a0b00" font-family="Silkscreen,monospace">${t}</text></g>`;
+const ICON = {
+  left: { name: 'Steer left', art:
+    `<path d="M76 14 L16 50 L76 86 L64 50 Z" fill="url(#gM)" ${K}/><path d="M70 22 L26 50" stroke="#fff" stroke-opacity=".7" stroke-width="3" fill="none"/>` },
+  right: { name: 'Steer right', art:
+    `<path d="M24 14 L84 50 L24 86 L36 50 Z" fill="url(#gM)" ${K}/><path d="M30 22 L74 50" stroke="#fff" stroke-opacity=".7" stroke-width="3" fill="none"/>` },
+  gas: { name: 'Accelerate', art:
+    `<rect x="42" y="74" width="16" height="18" fill="url(#gM)" ${K}/>
+     <path d="M30 10 H70 Q76 10 76 16 V72 Q76 78 70 78 H30 Q24 78 24 72 V16 Q24 10 30 10 Z" fill="url(#gG)" ${K}/>
+     <path d="M32 22 H68 M32 34 H68 M32 46 H68 M32 58 H68" stroke="#0b3d14" stroke-width="4" stroke-linecap="round"/>
+     <path d="M30 15 H52" stroke="#fff" stroke-opacity=".75" stroke-width="3" stroke-linecap="round"/>` },
+  brake: { name: 'Brake / reverse', art:
+    `<rect x="42" y="70" width="16" height="22" fill="url(#gM)" ${K}/>
+     <path d="M20 26 H80 Q86 26 86 32 V66 Q86 72 80 72 H20 Q14 72 14 66 V32 Q14 26 20 26 Z" fill="url(#gR)" ${K}/>
+     <path d="M24 38 H76 M24 49 H76 M24 60 H76" stroke="#4a0802" stroke-width="4" stroke-linecap="round"/>
+     <path d="M21 31 H50" stroke="#fff" stroke-opacity=".75" stroke-width="3" stroke-linecap="round"/>` },
+  hand: { name: 'Handbrake', art:
+    `<circle cx="28" cy="78" r="12" fill="url(#gK)" ${K}/>
+     <path d="M24 72 L66 22 L78 32 L36 82 Z" fill="url(#gM)" ${K}/>
+     <path d="M52 39 L66 22 L78 32 L64 49 Z" fill="url(#gK)" ${K}/>
+     <path d="M58 40 L70 28 M62 44 L74 31" stroke="#6d7385" stroke-width="3"/>
+     <circle cx="73" cy="25" r="8" fill="url(#gO)" ${K}/>` },
+  repair: { name: 'Repair', art:
+    `<path d="M70 10 a20 20 0 0 0-21 27 L14 72 a9 9 0 0 0 13 13 l35-35 a20 20 0 0 0 27-21 l-12 12 -11-2 -2-11 Z" fill="url(#gM)" ${K}/>
+     <path d="M20 76 L50 46" stroke="#fff" stroke-opacity=".6" stroke-width="3"/>
+     <path d="M80 62 l10 -4 M76 72 l9 6 M68 76 l2 10" stroke="#ffd21f" stroke-width="5" stroke-linecap="round"/>` },
+  recover: { name: 'Recover', art:
+    `<path d="M14 46 a36 36 0 0 1 64-20" stroke="url(#gO)" stroke-width="10" fill="none" stroke-linecap="round"/>
+     <path d="M86 12 L84 38 L62 30 Z" fill="url(#gO)" ${K}/>
+     <g transform="rotate(180 50 66)"><path d="M18 64 L28 50 H66 L80 62 L84 74 H16 Z" fill="url(#gM)" ${K}/>
+     <circle cx="32" cy="76" r="8" fill="url(#gK)" ${K}/><circle cx="68" cy="76" r="8" fill="url(#gK)" ${K}/></g>` },
+  use: { name: 'Use power-up', art:
+    `<path d="M50 4 L59 30 L84 18 L72 42 L96 52 L70 60 L80 86 L55 72 L44 96 L38 70 L12 80 L26 58 L4 46 L30 40 L20 14 L42 28 Z" fill="url(#gO)" ${K}/>
+     <path d="M54 22 L36 54 H50 L44 80 L66 44 H52 Z" fill="#fff8d6" stroke="#5a2600" stroke-width="3" stroke-linejoin="round"/>` },
+  next: { name: 'Next power-up', isNew: 1, art:
+    `<path d="M80 50 a30 30 0 1 1 -9 -21" stroke="url(#gO)" stroke-width="11" fill="none"/>
+     <path d="M88 12 L86 42 L60 32 Z" fill="url(#gO)" ${K}/>
+     <path d="M40 34 L64 50 L40 66 Z" fill="url(#gM)" ${K}/>` },
+  coin: { name: 'Buy upgrade', isNew: 1, art:
+    `<circle cx="50" cy="50" r="40" fill="url(#gY)" ${K}/>
+     <circle cx="50" cy="50" r="30" fill="none" stroke="#9a5f00" stroke-width="4" stroke-dasharray="5 4"/>
+     <text x="50" y="62" font-size="30" text-anchor="middle" fill="#5a3600" font-family="Silkscreen,monospace">CR</text>
+     <path d="M26 30 Q36 18 52 16" stroke="#fff" stroke-opacity=".8" stroke-width="4" fill="none" stroke-linecap="round"/>` },
+  armour: { name: 'Buy Armour', isNew: 1, art:
+    `<path d="M50 6 L86 18 V48 C86 72 70 86 50 94 C30 86 14 72 14 48 V18 Z" fill="url(#gM)" ${K}/>
+     <path d="M50 16 L76 25 V48 C76 66 65 77 50 84 Z" fill="#000" opacity=".18"/>
+     <circle cx="26" cy="26" r="4" fill="#3c4252"/><circle cx="74" cy="26" r="4" fill="#3c4252"/>
+     <circle cx="26" cy="56" r="4" fill="#3c4252"/><circle cx="74" cy="56" r="4" fill="#3c4252"/>` + tag('A') },
+  power: { name: 'Buy Power', isNew: 1, art:
+    `<path d="M10 68 A40 40 0 0 1 90 68 Z" fill="url(#gK)" ${K}/>
+     <path d="M20 66 A30 30 0 0 1 32 42" stroke="#46d45e" stroke-width="7" fill="none"/>
+     <path d="M34 40 A30 30 0 0 1 66 40" stroke="#ffcc2a" stroke-width="7" fill="none"/>
+     <path d="M68 42 A30 30 0 0 1 80 66" stroke="#ff4a3a" stroke-width="7" fill="none"/>
+     <path d="M50 66 L78 46" stroke="url(#gO)" stroke-width="7" stroke-linecap="round"/>
+     <circle cx="50" cy="66" r="8" fill="url(#gM)" ${K}/>` + tag('P') },
+  offensive: { name: 'Buy Offensive', isNew: 1, art:
+    `<rect x="12" y="40" width="70" height="22" rx="4" fill="url(#gM)" ${K}/>
+     <path d="M18 40 L26 14 L34 40 M38 40 L46 10 L54 40 M58 40 L66 14 L74 40" fill="url(#gR)" ${K}/>
+     <path d="M18 62 L26 84 L34 62" fill="url(#gR)" ${K}/>
+     <path d="M16 45 H76" stroke="#fff" stroke-opacity=".6" stroke-width="3"/>` + tag('O') },
+  pause: { name: 'Pause', art:
+    `<rect x="22" y="16" width="20" height="68" rx="3" fill="url(#gM)" ${K}/><rect x="58" y="16" width="20" height="68" rx="3" fill="url(#gM)" ${K}/>` },
+};
+
+/* ---------- frames ---------- */
+function octa(x, y, r, c = 0.34) { const k = r * c;
+  return `${x-r+k},${y-r} ${x+r-k},${y-r} ${x+r},${y-r+k} ${x+r},${y+r-k} ${x+r-k},${y+r} ${x-r+k},${y+r} ${x-r},${y+r-k} ${x-r},${y-r+k}`; }
+function hexa(x, y, r) { let p = [];
+  for (let i = 0; i < 6; i++) { const a = Math.PI / 3 * i; p.push(`${x + r * Math.cos(a)},${y + r * Math.sin(a) * 0.92}`); } return p.join(' '); }
+const STYLES = {
+  plate: { name: 'HUD plate', sub: 'navy glass, violet outline',
+    frame: (x, y, r) => `<polygon points="${octa(x, y, r)}" fill="rgba(18,22,64,.6)" stroke="#5c6bff" stroke-width="${r*.07}"/>
+      <polygon points="${octa(x, y, r*.85)}" fill="none" stroke="rgba(92,107,255,.35)" stroke-width="${r*.03}"/>`, scale: 1.25 },
+  scrap: { name: 'Scrap metal', sub: 'bolted steel, rivets',
+    frame: (x, y, r) => { let rv = ''; for (let i = 0; i < 6; i++) { const a = Math.PI / 3 * i + Math.PI / 6;
+        rv += `<circle cx="${x + r*.8*Math.cos(a)}" cy="${y + r*.74*Math.sin(a)}" r="${r*.05}" fill="#9aa1ad" stroke="#111" stroke-width="${r*.015}"/>`; }
+      return `<polygon points="${hexa(x, y, r)}" fill="url(#steel)" stroke="#a4abb6" stroke-width="${r*.05}"/>
+      <polygon points="${hexa(x, y, r*.93)}" fill="none" stroke="rgba(0,0,0,.6)" stroke-width="${r*.04}"/>${rv}`; }, scale: 1.12 },
+  lcd: { name: 'Glow ring', sub: 'thin, see-through',
+    frame: (x, y, r) => `<circle cx="${x}" cy="${y}" r="${r}" fill="rgba(0,0,0,.3)" stroke="#ffd21f" stroke-opacity=".65"
+      stroke-width="${r*.035}" stroke-dasharray="${r*.32} ${r*.07}"/>`, scale: 1.2 },
+};
+function button(key, x, y, r, st, pressed) {
+  const S = STYLES[st], s = r * S.scale / 50;      // icon art is 100 wide
+  return `<g>${S.frame(x, y, r)}<g transform="translate(${x - 50*s},${y - 50*s}) scale(${s})" filter="url(#drop)"
+    opacity="${pressed ? 1 : .92}">${ICON[key].art}</g></g>`;
+}
+
+/* ---------- mock-up ---------- */
+const A = 2000 / 900, U = 900;
+function scene() {
+  return `<defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a1f3d"/><stop offset=".55" stop-color="#7a4a3a"/><stop offset="1" stop-color="#c98a52"/></linearGradient>
+    <linearGradient id="road" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3b3a3e"/><stop offset="1" stop-color="#1c1b1f"/></linearGradient></defs>
+    <rect width="2000" height="900" fill="url(#sky)"/>
+    <path d="M0 470 L380 400 L700 440 L1100 380 L1500 430 L2000 390 V560 H0 Z" fill="#241c26"/>
+    <path d="M0 900 L860 480 H1140 L2000 900 Z" fill="url(#road)"/>
+    <path d="M995 490 L1005 490 L1040 900 L960 900 Z" fill="#c9a43a" opacity=".55"/>
+    <rect x="845" y="560" width="310" height="150" rx="18" fill="#141418"/><rect x="870" y="520" width="260" height="70" rx="14" fill="#1d1d24"/>
+    <g opacity=".9">
+      <path d="M520 0 H1480 L1440 120 H560 Z" fill="rgba(18,22,64,.62)" stroke="#2b3170" stroke-width="3"/>
+      <text x="1000" y="82" font-size="62" text-anchor="middle" fill="#ffd21f" font-family="Silkscreen,monospace">4:09</text>
+      <text x="640" y="56" font-size="24" fill="#6f7dff" font-family="Silkscreen,monospace">CP 1/4  LAP 1/4</text>
+      <text x="1240" y="56" font-size="24" fill="#6f7dff" font-family="Silkscreen,monospace">8200 CREDITS</text>
+      <path d="M540 820 H1460 L1480 900 H520 Z" fill="rgba(18,22,64,.62)" stroke="#2b3170" stroke-width="3"/>
+      <text x="580" y="872" font-size="24" fill="#6f7dff" font-family="Silkscreen,monospace">CONDITION ███████  100%</text>
+      <rect x="1860" y="760" width="140" height="140" fill="rgba(80,160,120,.35)" stroke="#9fd" stroke-dasharray="8 6" stroke-width="2"/>
+      <text x="1930" y="895" font-size="16" text-anchor="middle" fill="#cfe" font-family="Silkscreen,monospace">MAP</text>
+    </g>`;
+}
+const BASE = [
+  ['left', 0.17, 0.80, 0.13], ['right', 0.47, 0.80, 0.13],
+  ['gas', A-0.21, 0.69, 0.13], ['brake', A-0.47, 0.84, 0.10],
+  ['hand', A-0.13, 0.40, 0.08], ['use', A-0.40, 0.52, 0.075], ['next', A-0.27, 0.42, 0.05],
+  ['coin', A-0.56, 0.40, 0.055],
+  ['repair', 0.12, 0.47, 0.065], ['recover', 0.32, 0.47, 0.065], ['pause', A-0.09, 0.10, 0.055],
+];
+const FAN = [['armour', A-0.73, 0.33, 0.06], ['power', A-0.66, 0.20, 0.06], ['offensive', A-0.52, 0.18, 0.06]];
+
+let style = 'plate', fan = false, hover = null, toast = '', fanTimer = 0, toastTimer = 0;
+function render() {
+  document.getElementById('sheet').innerHTML = Object.entries(ICON).map(([k, v]) =>
+    `<div class="cell${v.isNew ? ' new' : ''}"><svg viewBox="0 0 200 200" aria-hidden="true">${button(k, 100, 100, 84, style)}</svg>
+     <b>${v.isNew ? 'NEW' : '&nbsp;'}</b><span>${v.name}</span></div>`).join('');
+  let out = scene();
+  if (fan) {
+    const [cx, cy] = [BASE[7][1] * U, BASE[7][2] * U];
+    out += `<path d="M${cx} ${cy} L${(A-0.80)*U} ${0.36*U} A ${0.30*U} ${0.30*U} 0 0 1 ${(A-0.47)*U} ${0.08*U} Z" fill="rgba(255,204,42,.12)" stroke="rgba(255,204,42,.5)" stroke-width="3"/>`;
+  }
+  for (const [k, x, y, r] of BASE) out += `<g data-k="${k}" style="cursor:pointer">${button(k, x * U, y * U, r * U, style, k === 'coin' && fan)}</g>`;
+  if (fan) for (const [k, x, y, r] of FAN) {
+    const big = hover === k ? 1.18 : 1;
+    out += `<g data-k="${k}" class="pop" style="cursor:pointer">${button(k, x * U, y * U, r * U * big, style, hover === k)}</g>`;
+  }
+  if (toast) out += `<g class="pop"><rect x="760" y="150" width="480" height="64" fill="rgba(18,22,64,.85)" stroke="#ff8a1e" stroke-width="3"/>
+    <text x="1000" y="194" font-size="30" text-anchor="middle" fill="#ffd21f" font-family="Silkscreen,monospace">${toast}</text></g>`;
+  document.getElementById('scr').innerHTML = out + `<style>.pop{animation:pop .16s ease-out both;transform-box:fill-box;transform-origin:center}
+    @keyframes pop{from{transform:scale(.5);opacity:0}to{transform:none;opacity:1}}@media (prefers-reduced-motion: reduce){.pop{animation:none}}</style>`;
+  document.querySelectorAll('#styles button').forEach(b => b.setAttribute('aria-pressed', b.dataset.k === style));
+}
+
+document.getElementById('styles').innerHTML = Object.entries(STYLES).map(([k, v]) =>
+  `<button type="button" data-k="${k}" id="style-${k}">${v.name}<small>${v.sub}</small></button>`).join('');
+document.getElementById('styles').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { style = b.dataset.k; render(); } });
+
+const svg = document.getElementById('scr');
+const NAMES = { armour: 'ARMOUR +1', power: 'POWER +1', offensive: 'OFFENSIVE +1', next: 'NEXT POWER-UP', use: 'POWER-UP USED' };
+function say(t) { toast = t; clearTimeout(toastTimer); toastTimer = setTimeout(() => { toast = ''; render(); }, 1100); }
+function keyAt(e) { const el = document.elementFromPoint(e.clientX, e.clientY); const g = el && el.closest('[data-k]'); return g ? g.dataset.k : null; }
+let dragging = false;
+svg.addEventListener('pointerdown', e => {
+  const k = keyAt(e); clearTimeout(fanTimer);
+  if (k === 'coin') { fan = !fan || dragging; dragging = true; fan = true; render(); e.preventDefault(); return; }
+  if (fan && ['armour', 'power', 'offensive'].includes(k)) { say(NAMES[k]); fan = false; render(); return; }
+  if (k === 'next' || k === 'use') say(NAMES[k]);
+  fan = false; render();
+});
+svg.addEventListener('pointermove', e => { if (!dragging || !fan) return; const k = keyAt(e);
+  const h = ['armour', 'power', 'offensive'].includes(k) ? k : null; if (h !== hover) { hover = h; render(); } });
+window.addEventListener('pointerup', e => {
+  if (!dragging) return; dragging = false;
+  if (hover) { say(NAMES[hover]); fan = false; hover = null; }
+  else if (fan) fanTimer = setTimeout(() => { fan = false; render(); }, 3000);
+  render();
+});
+render();
+</script>

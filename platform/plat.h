@@ -20,6 +20,7 @@ void plat_cycle_fps_cap(void);
 void touch_init(void);
 void touch_event(SDL_Event *e);
 void touch_draw(void);
+void touch_gamepad(int active);   /* 1: a controller is connected/used -> hide the touch buttons */
 void touch_tick(void);
 void touch_sensor(const float *d);
 

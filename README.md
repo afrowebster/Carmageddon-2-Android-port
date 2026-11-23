@@ -83,7 +83,8 @@ Both check that `CARMA2_HW.EXE` and `3dfx_win.bdd` are the tested GOG files (SHA
   (the original Smacker player could skip frames on slow devices and corrupt the picture) and the picture
   stays in sync with the soundtrack.
 * **CD music** is played from the GOG release's Ogg tracks.
-* **Game controllers** (Android and desktop) and **touch controls** (Android).
+* **Game controllers** (Android and desktop) and **touch controls** (Android) in a style matching the race HUD,
+  with the in-race upgrade buying on a fan-out button; the touch controls hide while a controller is in use.
 * **Mobile GPU friendly renderer**: draws are batched and submitted together, with a state cache and a
   shader variant without `discard`, so tile-based phone GPUs don't stall (a Pixel 10 Pro XL runs races
   at 120+ fps unlocked).
@@ -122,10 +123,20 @@ for the GPU / vsync.
 | where | button |
 |---|---|
 | left, bottom | steer left / right |
-| left, middle | repair (+), recover (house) |
-| right, bottom | accelerate (green), brake / reverse (red) |
-| right, middle | handbrake (bar), use power-up (star), next power-up |
-| top right | Esc (pause menu) |
+| left, middle | repair (spanner), recover (flip arrow) |
+| right, bottom | accelerate (green pedal), brake / reverse (red pedal) |
+| right, middle | handbrake (lever), use power-up (burst), next power-up (cycle arrow, beside it) |
+| top right | pause (Esc), **BUY** coin |
+
+**Buying upgrades**: press the gold BUY coin and Armour, Power and Offensive fan out around it. Hold the coin,
+slide onto one and let go, or tap the coin and then tap one. The fan closes after a buy, a touch elsewhere or
+3 seconds. (These are the game's in-race buy keys; it tells you when you can't afford it.)
+
+**With a game controller** the touch buttons hide as soon as the controller connects or is used, and come
+back when you touch the screen or the last controller disconnects.
+
+The button artwork is original (`tools/make_touch_atlas.py` draws it; `design/touch-concepts.html` shows the
+concepts).
 
 The Android **Back** button is Esc.
 

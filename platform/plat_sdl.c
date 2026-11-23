@@ -293,11 +293,25 @@ void plat_pump_events(void) {
         }
 #endif
         case SDL_SENSORUPDATE: touch_sensor(e.sensor.data); break;
-        case SDL_CONTROLLERDEVICEADDED: SDL_GameControllerOpen(e.cdevice.which); LOG("controller added: %s", SDL_GameControllerNameForIndex(e.cdevice.which)); break;
+        case SDL_CONTROLLERDEVICEADDED:
+            if (SDL_GameControllerOpen(e.cdevice.which)) touch_gamepad(1);
+            LOG("controller added: %s", SDL_GameControllerNameForIndex(e.cdevice.which));
+            break;
+        case SDL_CONTROLLERDEVICEREMOVED: {
+            SDL_GameController *gc = SDL_GameControllerFromInstanceID(e.cdevice.which);
+            if (gc) SDL_GameControllerClose(gc);
+            int left = 0;
+            for (int i = 0; i < SDL_NumJoysticks(); i++) left += SDL_IsGameController(i);
+            LOG("controller removed (%d left)", left);
+            if (!left) touch_gamepad(0);
+            break;
+        }
         case SDL_CONTROLLERBUTTONDOWN: case SDL_CONTROLLERBUTTONUP:
+            if (e.type == SDL_CONTROLLERBUTTONDOWN) touch_gamepad(1);
             pad_button(e.cbutton.button, e.type == SDL_CONTROLLERBUTTONDOWN);
             break;
         case SDL_CONTROLLERAXISMOTION:
+            if (e.caxis.value > 12000 || e.caxis.value < -12000) touch_gamepad(1);   /* ignore stick drift */
             pad_axis(e.caxis.axis, e.caxis.value);
             break;
         case SDL_WINDOWEVENT:

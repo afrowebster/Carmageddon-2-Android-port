@@ -15,7 +15,7 @@ The input can also be a folder with the installed game (the one containing CARMA
 import argparse, concurrent.futures, glob, hashlib, io, os, platform, runpy, shutil, subprocess, sys, tarfile
 import threading, time, urllib.request, zipfile
 
-VERSION = '1.0.0'
+VERSION = '1.1.0'
 ZIG_VERSION = '0.15.2'
 ZIG_SHA256 = {   # https://ziglang.org/download/index.json
     'x86_64-linux': '02aa270f183da276e5b5920b1dac44a63f1a49e55050ebde3aecc9eb82f93239',
