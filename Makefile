@@ -4,7 +4,7 @@ CFLAGS = $(OPT) -g -fno-strict-aliasing -fwrapv -Wall -Wno-unused-label -Wno-unu
          -Wno-unused-function -Wno-parentheses-equality -Iruntime $(shell sdl2-config --cflags)
 LDLIBS = $(shell sdl2-config --libs) -lGLESv2 -lm -lpthread -lz
 GEN_SRC = $(wildcard gen/exe/*.c gen/bdd/*.c)
-RT_SRC = runtime/rt.c runtime/heap.c $(wildcard win32/*.c) \
+RT_SRC = runtime/rt.c runtime/heap.c runtime/game_glue.c $(wildcard win32/*.c) \
          platform/plat_sdl.c platform/settings.c platform/main_desktop.c platform/touch.c platform/audio.c
 OBJ = $(patsubst %.c,build/%.o,$(GEN_SRC) $(RT_SRC))
 

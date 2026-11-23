@@ -381,6 +381,32 @@ extern void heap_init(void);
 
 extern void game_init(void);
 
+/* ---------------- the recompiled game code (libgame) ---------------- */
+static double c_trunc(double x) { return trunc(x); }
+static const RtApi g_api_template = {
+    C2_RTAPI_VERSION, 0, rt_call, rt_badjump, rt_trap, rt_unimpl, rt_fallthrough, rt_divzero, rt_cpuid, rt_hook, rt_rdtsc,
+    fpu_fxam, fpu_fxtract, fpu_init, fpu_fnstenv, fpu_fldenv, fpu_fnsave, fpu_frstor, fpu_ld80, fpu_st80, fpu_round,
+    fpu_toint32, fpu_toint16, fpu_toint64, memmove, memset,
+    sin, cos, tan, atan2, ldexp, log2, fmod, exp2, remainder, c_trunc,
+};
+static RtApi g_api;
+
+#ifdef C2_DYNGAME
+#include <dlfcn.h>
+/* Android: the game code is a separate library, built on the user's machine from their copy of the game */
+static const LiftedModule *const *load_game(void) {
+    void *h = dlopen("libgame.so", RTLD_NOW);
+    if (!h) rt_fatal("cannot load libgame.so: %s", dlerror());
+    C2GameInit init = (C2GameInit)dlsym(h, "c2_game_init");
+    if (!init) rt_fatal("libgame.so has no c2_game_init");
+    const LiftedModule *const *m = init(&g_api);
+    if (!m) rt_fatal("libgame.so was built for a different runtime version");
+    return m;
+}
+#else
+static const LiftedModule *const *load_game(void) { return c2_game_init(&g_api); }
+#endif
+
 int rt_main(const char *game_dir, const char *save_dir) {
     snprintf(g_game_dir, sizeof g_game_dir, "%s", game_dir);
     snprintf(g_save_dir, sizeof g_save_dir, "%s", save_dir);
@@ -401,11 +427,14 @@ int rt_main(const char *game_dir, const char *save_dir) {
     t_cpu = c;
     c->esp = GUEST_STACK_HI - 16;
     snprintf(p, sizeof p, "%s/CARMA2_HW.EXE", game_dir);
-    g_image_base = load_pe(p, &g_mod_exe);
+    g_api = g_api_template;
+    g_api.mem = g_mem;
+    const LiftedModule *const *mods = load_game();
+    g_image_base = load_pe(p, mods[0]);
     g_image_size = g_gmods[g_ngmods - 1].size;
     gw32(GUEST_PEB + 0x08, g_image_base);
     /* Glide driver: loaded by BRender's own loader, pinned at its preferred base by a hook */
-    rt_register_funcs(&g_mod_bdd);
+    rt_register_funcs(mods[1]);
     game_init();
     uint32_t entry = g_gmods[0].entry;
     c->esp = GUEST_STACK_HI - 16;

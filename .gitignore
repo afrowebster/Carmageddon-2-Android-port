@@ -12,8 +12,6 @@ android/.gradle/
 android/app/src/main/assets/
 android/deps/SDL2-2.30.9/
 save_v*/
-# generated from your own game files / machine by the build script
-android/app/src/main/res/mipmap-*/
-android/app/src/main/res/values/ic_launcher_bg.xml
 android/local.properties
 dist/
+__pycache__/

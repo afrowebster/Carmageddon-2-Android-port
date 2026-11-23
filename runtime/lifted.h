@@ -1,9 +1,50 @@
 #pragma once
-/* Macros used by generated code */
+/* Macros used by generated code (and the declarations the runtime implements) */
+#include "rtapi.h"
+
+#ifdef C2_GEN
+/* generated code: everything external goes through the runtime's table (see rtapi.h) */
+extern const RtApi *g_rt;
+#define g_mem (g_rt->mem)
+#define rt_call(c, t) g_rt->call(c, t)
+#define rt_badjump(c, a, t) g_rt->badjump(c, a, t)
+#define rt_trap(c, a) g_rt->trap(c, a)
+#define rt_unimpl(c, a, w) g_rt->unimpl(c, a, w)
+#define rt_fallthrough(c, a) g_rt->fallthrough(c, a)
+#define rt_divzero(c, a) g_rt->divzero(c, a)
+#define rt_cpuid(c) g_rt->cpuid(c)
+#define rt_hook(c, a) g_rt->hook(c, a)
+#define rt_rdtsc() g_rt->rdtsc()
+#define fpu_fxam(c) g_rt->fpu_fxam(c)
+#define fpu_fxtract(c) g_rt->fpu_fxtract(c)
+#define fpu_init(c) g_rt->fpu_init(c)
+#define fpu_fnstenv(c, a) g_rt->fpu_fnstenv(c, a)
+#define fpu_fldenv(c, a) g_rt->fpu_fldenv(c, a)
+#define fpu_fnsave(c, a) g_rt->fpu_fnsave(c, a)
+#define fpu_frstor(c, a) g_rt->fpu_frstor(c, a)
+#define fpu_ld80(p) g_rt->fpu_ld80(p)
+#define fpu_st80(p, v) g_rt->fpu_st80(p, v)
+#define fpu_round(c, v) g_rt->fpu_round(c, v)
+#define fpu_toint32(c, v) g_rt->fpu_toint32(c, v)
+#define fpu_toint16(c, v) g_rt->fpu_toint16(c, v)
+#define fpu_toint64(c, v) g_rt->fpu_toint64(c, v)
+#define memmove(d, s, n) g_rt->memmove(d, s, n)
+#define memset(d, v, n) g_rt->memset(d, v, n)
+#define sqrt(x) __builtin_sqrt(x)
+#define fabs(x) __builtin_fabs(x)
+#define sin(x) g_rt->sin(x)
+#define cos(x) g_rt->cos(x)
+#define tan(x) g_rt->tan(x)
+#define atan2(y, x) g_rt->atan2(y, x)
+#define ldexp(x, e) g_rt->ldexp(x, e)
+#define log2(x) g_rt->log2(x)
+#define fmod(x, y) g_rt->fmod(x, y)
+#define exp2(x) g_rt->exp2(x)
+#define remainder(x, y) g_rt->remainder(x, y)
+#define trunc(x) g_rt->trunc(x)
+#else
 #include <math.h>
 #include <string.h>
-#include "cpu.h"
-
 void rt_call(CPU *c, uint32_t target);
 void rt_badjump(CPU *c, uint32_t at, uint32_t target);
 void rt_trap(CPU *c, uint32_t at);
@@ -26,6 +67,7 @@ double fpu_round(CPU *c, double v);
 uint32_t fpu_toint32(CPU *c, double v);
 uint16_t fpu_toint16(CPU *c, double v);
 uint64_t fpu_toint64(CPU *c, double v);
+#endif
 
 static inline void rt_movs(uint8_t *M, uint32_t d, uint32_t s, uint32_t n) {
     /* byte-wise forward semantic: overlapping forward copies must replicate */

@@ -8,15 +8,14 @@ android {
         applicationId 'com.carma2.recomp'
         minSdk 24
         targetSdk 34
-        versionCode 1
-        versionName '1.0'
+        versionCode 2
+        versionName '1.1'
         ndk { abiFilters 'arm64-v8a', 'x86_64' }
-        externalNativeBuild { cmake { arguments '-DANDROID_STL=c++_static' } }
+        externalNativeBuild { cmake { arguments '-DANDROID_STL=c++_static', "-DC2_WITH_GAME=${project.findProperty('withGame') ?: 'OFF'}" } }
     }
     buildTypes {
         release {
-            minifyEnabled false
-            signingConfig signingConfigs.debug
+            minifyEnabled false     // unsigned: the APK builder adds the game and signs it with your own key
         }
     }
     externalNativeBuild { cmake { path 'jni/CMakeLists.txt'; version '3.22.1' } }

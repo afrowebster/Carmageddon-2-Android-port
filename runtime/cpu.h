@@ -22,7 +22,6 @@ typedef struct CPU {
 
 typedef void (*GuestFn)(CPU *c);
 
-extern uint8_t *g_mem;
 
 typedef uint8_t u8;
 typedef uint16_t __attribute__((aligned(1))) u16u;
@@ -31,7 +30,9 @@ typedef uint64_t __attribute__((aligned(1))) u64u;
 typedef float __attribute__((aligned(1))) f32u;
 typedef double __attribute__((aligned(1))) f64u;
 
-/* host-side access helpers */
+#ifndef C2_GEN
+/* host-side access helpers (runtime only) */
+extern uint8_t *g_mem;
 #define GPTR(a) ((void *)(g_mem + (uint32_t)(a)))
 static inline uint32_t gr32(uint32_t a) { return *(u32u *)(g_mem + a); }
 static inline uint16_t gr16(uint32_t a) { return *(u16u *)(g_mem + a); }
@@ -41,3 +42,4 @@ static inline void gw16(uint32_t a, uint16_t v) { *(u16u *)(g_mem + a) = v; }
 static inline void gw8(uint32_t a, uint8_t v) { g_mem[a] = v; }
 static inline float grf(uint32_t a) { return *(f32u *)(g_mem + a); }
 static inline void gwf(uint32_t a, float v) { *(f32u *)(g_mem + a) = v; }
+#endif

@@ -4,10 +4,7 @@
 #include <string.h>
 #include "cpu.h"
 
-typedef struct { uint32_t addr; GuestFn fn; } FuncEntry;
-typedef struct { uint32_t iat; const char *dll; const char *name; } ImportEntry;
-typedef struct { const char *file; uint32_t base; int nfuncs; const FuncEntry *funcs; const ImportEntry *imports; int nimports; } LiftedModule;
-extern const LiftedModule g_mod_exe, g_mod_bdd;
+#include "rtapi.h"
 /* guest-side modules (lifted DLLs loaded by our loader) */
 uint32_t rt_module_export(const char *dll, const char *name);
 uint32_t rt_module_handle(const char *dll);

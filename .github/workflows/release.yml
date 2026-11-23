@@ -1,0 +1,156 @@
+name: release
+
+# Builds the APK builder for Windows x64, Linux x64 and macOS (arm64 + x64), each in two editions:
+#   full  - includes the Zig C compiler, works offline
+#   light - downloads the Zig C compiler (pinned version, checksum verified) on first use
+# Push a tag like v1.0.0 to publish a GitHub release; any other run just uploads workflow artifacts.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  SDL_VERSION: 2.30.9
+  NDK_VERSION: 27.2.12479018
+  ZIG_VERSION: 0.15.2
+  INNOEXTRACT_VERSION: '1.9'
+
+jobs:
+  template:
+    name: runtime template APK
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '17' }
+      - name: Android NDK and CMake
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;$NDK_VERSION" "cmake;3.22.1" > /dev/null
+      - name: SDL2
+        run: |
+          mkdir -p android/deps
+          curl -sfL "https://github.com/libsdl-org/SDL/releases/download/release-$SDL_VERSION/SDL2-$SDL_VERSION.tar.gz" | tar -xz -C android/deps
+      - name: Build
+        working-directory: android
+        run: |
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleRelease
+          cp app/build/outputs/apk/release/app-release-unsigned.apk ../template.apk
+      - uses: actions/upload-artifact@v4
+        with: { name: template, path: template.apk }
+
+  builder:
+    name: builder ${{ matrix.name }}
+    needs: template
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: windows-x64, os: windows-2022, zig: x86_64-windows, ext: zip }
+          - { name: linux-x64, os: ubuntu-22.04, zig: x86_64-linux, ext: tar.xz }
+          - { name: macos-arm64, os: macos-14, zig: aarch64-macos, ext: tar.xz }
+          - { name: macos-x64, os: macos-15-intel, zig: x86_64-macos, ext: tar.xz }
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run: { shell: bash }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.13' }
+      - uses: actions/download-artifact@v4
+        with: { name: template, path: template }
+      - name: Python packages
+        run: python -m pip install pyinstaller==6.22.3 pefile==2024.8.26 capstone==5.0.9 numpy==2.5.5 pillow==13.0.0 av==19.0.2
+
+      - name: innoextract (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          curl -sfLO "https://constexpr.org/innoextract/files/innoextract-$INNOEXTRACT_VERSION-windows.zip"
+          echo "6989342c9b026a00a72a38f23b62a8e6a22cc5de69805cf47d68ac2fec993065  innoextract-$INNOEXTRACT_VERSION-windows.zip" | sha256sum -c
+          mkdir -p ie && unzip -q "innoextract-$INNOEXTRACT_VERSION-windows.zip" -d ie
+          mkdir -p extra/innoextract && cp ie/innoextract.exe ie/README.txt extra/innoextract/ && cp -r ie/license extra/innoextract/
+      - name: innoextract (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          curl -sfLO "https://constexpr.org/innoextract/files/innoextract-$INNOEXTRACT_VERSION-linux.tar.xz"
+          echo "008efe5011476ccc4aae17c3e22038b5a1bc5c7aad2b9d4d869537bf3874d21f  innoextract-$INNOEXTRACT_VERSION-linux.tar.xz" | sha256sum -c
+          tar -xJf "innoextract-$INNOEXTRACT_VERSION-linux.tar.xz"
+          mkdir -p extra/innoextract && cp "innoextract-$INNOEXTRACT_VERSION-linux/bin/amd64/innoextract" "innoextract-$INNOEXTRACT_VERSION-linux/README" extra/innoextract/
+      - name: innoextract (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install innoextract dylibbundler
+          mkdir -p extra/innoextract/libs
+          cp "$(brew --prefix)/bin/innoextract" extra/innoextract/
+          chmod u+w extra/innoextract/innoextract
+          dylibbundler -of -b -x extra/innoextract/innoextract -d extra/innoextract/libs -p @executable_path/libs/
+          codesign --force -s - extra/innoextract/libs/*.dylib extra/innoextract/innoextract
+          extra/innoextract/innoextract --version
+
+      - name: Freeze
+        run: |
+          SEP=':'; [ "$RUNNER_OS" = Windows ] && SEP=';'
+          python -m PyInstaller --noconfirm --clean --onedir --console --name carma2-apk-builder \
+            --paths builder \
+            --add-data "tools/lift.py${SEP}tools" --add-data "tools/recode_video.py${SEP}tools" \
+            --add-data "tools/hooks.txt${SEP}tools" --add-data "tools/hooks_bdd.txt${SEP}tools" \
+            --add-data "tools/patches.txt${SEP}tools" \
+            --add-data "runtime/rtapi.h${SEP}runtime" --add-data "runtime/lifted.h${SEP}runtime" \
+            --add-data "runtime/cpu.h${SEP}runtime" --add-data "runtime/game_glue.c${SEP}runtime" \
+            --add-data "template/template.apk${SEP}template" \
+            --hidden-import gui --hidden-import apk --hidden-import pefile \
+            --collect-all capstone --collect-all av --hidden-import numpy --hidden-import PIL.Image \
+            builder/c2build.py
+          cp -r extra/innoextract dist/carma2-apk-builder/
+          cp LICENSE dist/carma2-apk-builder/LICENSE.txt
+          cp builder/README.txt dist/carma2-apk-builder/README.txt
+          # smoke test: the frozen tool mode can import everything the lifter and recoder need
+          dist/carma2-apk-builder/carma2-apk-builder --version
+          dist/carma2-apk-builder/carma2-apk-builder --tool selftest
+
+      - name: Package
+        run: |
+          V="${GITHUB_REF_NAME#v}"; [ "$GITHUB_REF_TYPE" = tag ] || V="dev-${GITHUB_SHA::7}"
+          BASE="carma2-apk-builder-$V-${{ matrix.name }}"
+          mkdir -p out
+          cd dist
+          pack() { if [ "${{ matrix.ext }}" = zip ]; then 7z a -bd -mx=9 "../out/$1.zip" carma2-apk-builder > /dev/null; else tar -cJf "../out/$1.tar.xz" carma2-apk-builder; fi; }
+          pack "$BASE-light"
+          Z="zig-${{ matrix.zig }}-$ZIG_VERSION"
+          if [ "${{ matrix.ext }}" = zip ]; then
+            curl -sfLO "https://ziglang.org/download/$ZIG_VERSION/$Z.zip" && 7z x -bd "$Z.zip" > /dev/null
+          else
+            curl -sfL "https://ziglang.org/download/$ZIG_VERSION/$Z.tar.xz" | tar -xJ
+          fi
+          mv "$Z" carma2-apk-builder/zig
+          # verify the toolchain we bundle is the one the builder pins
+          python - <<'EOF'
+          import hashlib, os, sys
+          sys.path.insert(0, os.path.join(os.environ['GITHUB_WORKSPACE'], 'builder'))
+          import c2build
+          assert c2build.ZIG_VERSION == os.environ['ZIG_VERSION'], 'ZIG_VERSION mismatch'
+          EOF
+          pack "$BASE-full"
+          ls -la ../out
+      - uses: actions/upload-artifact@v4
+        with: { name: 'builder-${{ matrix.name }}', path: out/* }
+
+  release:
+    if: github.ref_type == 'tag'
+    needs: builder
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { path: out, pattern: 'builder-*', merge-multiple: true }
+      - uses: actions/download-artifact@v4
+        with: { name: template, path: out }
+      - name: Publish
+        env: { GH_TOKEN: '${{ github.token }}' }
+        run: |
+          mv out/template.apk out/carma2-runtime-template.apk   # stable name: build.sh downloads releases/latest
+          gh release create "$GITHUB_REF_NAME" out/* --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --notes \
+            "APK builder for Windows x64, Linux x64 and macOS. **full**: works offline (includes the Zig C compiler). **light**: downloads the Zig C compiler on first use. See the README for usage. You need your own copy of the game (GOG release)."

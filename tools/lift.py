@@ -828,13 +828,13 @@ with open(os.path.join(OUT, 'funcs.h'), 'w') as f:
     for e in names: f.write('void %s(CPU *c);\n' % fn_name(e))
 for i, ch in enumerate(chunks):
     with open(os.path.join(OUT, '%s_%02d.c' % (MOD, i)), 'w') as f:
-        f.write('#include "funcs.h"\n#include "lifted.h"\n\n')
+        f.write('#define C2_GEN 1\n#include "funcs.h"\n#include "lifted.h"\n\n')
         for e in ch:
             insns, jts = funcs[e]
             f.write('\n'.join(emit_func(e, insns, jts)))
             f.write('\n\n')
 with open(os.path.join(OUT, '%s_table.c' % MOD), 'w') as f:
-    f.write('#include "funcs.h"\n#include "runtime.h"\n')
+    f.write('#define C2_GEN 1\n#include "funcs.h"\n#include "lifted.h"\n')
     f.write('static const FuncEntry funcs[] = {\n')
     for e in names: f.write(' {0x%xu, %s},\n' % (e, fn_name(e)))
     f.write('};\nstatic const ImportEntry imports[] = {\n')
