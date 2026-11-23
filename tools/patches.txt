@@ -1,0 +1,5 @@
+# Byte patches applied to CARMA2_HW.EXE before lifting:  address  hex-bytes  # why
+# Frame period floor (0x4927d5): the game counts every frame as at least 10 ms, so above ~100 fps
+# physics, timers and AI ran too fast (1.2x at 120 fps, 2.4x at 240). Lower the floor to 1 ms.
+4927d7 01            # cmp eax, 0xa   -> cmp eax, 1
+4927e0 01000000      # mov [frame_period], 0xa -> 1

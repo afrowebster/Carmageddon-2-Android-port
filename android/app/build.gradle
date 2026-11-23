@@ -1,0 +1,25 @@
+plugins { id 'com.android.application' }
+
+android {
+    namespace 'com.carma2.recomp'
+    compileSdk 34
+    ndkVersion '27.2.12479018'
+    defaultConfig {
+        applicationId 'com.carma2.recomp'
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName '1.0'
+        ndk { abiFilters 'arm64-v8a', 'x86_64' }
+        externalNativeBuild { cmake { arguments '-DANDROID_STL=c++_static' } }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.debug
+        }
+    }
+    externalNativeBuild { cmake { path 'jni/CMakeLists.txt'; version '3.22.1' } }
+    sourceSets { main { assets.srcDirs = ['src/main/assets'] } }
+    androidResources { noCompress 'ogg' }
+}
