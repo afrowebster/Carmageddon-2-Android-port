@@ -3,7 +3,7 @@ game/
 gen/
 build/
 save/
-carma2
+/carma2
 android_ref/
 *.ppm
 android/app/build/
