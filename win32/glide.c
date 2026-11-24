@@ -768,6 +768,8 @@ static void present_(void) {
                         uint32_t i = (a - 0x58f000) / 4;
                         uint32_t d1 = snap[1][i] - snap[0][i], d2 = snap[2][i] - snap[1][i], d3 = snap[3][i] - snap[2][i];
                         if (d1 >= 3 && d1 <= 40 && d2 >= 3 && d2 <= 40 && d3 >= 3 && d3 <= 40) LOG("SCAN %08x += %u %u %u (now %u)", a, d1, d2, d3, snap[3][i]);
+                        uint32_t e1 = -d1, e2 = -d2, e3 = -d3;   /* decreasing (count-down timers) */
+                        if (e1 >= 3 && e1 <= 40 && e2 >= 3 && e2 <= 40 && e3 >= 3 && e3 <= 40) LOG("SCAN %08x -= %u %u %u (now %d)", a, e1, e2, e3, (int)snap[3][i]);
                     }
                 }
             }

@@ -3,3 +3,13 @@
 # physics, timers and AI ran too fast (1.2x at 120 fps, 2.4x at 240). Lower the floor to 1 ms.
 4927d7 01            # cmp eax, 0xa   -> cmp eax, 1
 4927e0 01000000      # mov [frame_period], 0xa -> 1
+# End-of-race tally (0x493740): it measures "now - state start" with unsigned compares. The race-over
+# clock (0x514c30) can step backwards, up to 1 s after a clamped >1 s frame (a hitch, or Android pausing
+# the app), and the unsigned difference then wraps: the timer counts up and the time bonus goes hugely
+# negative. Compare signed, so a backwards step just waits.
+49381a 7e            # time -> bonus loop:    jbe -> jle
+493924 7e            # bonus -> credits loop: jbe -> jle
+493769 8c            # 500 ms pause:  jb -> jl
+4937eb 8c            # 2000 ms pause: jb -> jl
+4938db 8c            # 1000 ms pause: jb -> jl
+4939da 7c            # 2000 ms pause: jb -> jl

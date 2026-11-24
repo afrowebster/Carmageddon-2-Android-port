@@ -124,9 +124,12 @@ for the GPU / vsync.
 |---|---|
 | left, bottom | steer left / right |
 | left, middle | repair (spanner), recover (flip arrow) |
-| right, bottom | accelerate (green pedal), brake / reverse (red pedal) |
-| right, middle | handbrake (lever), use power-up (burst), next power-up (cycle arrow, beside it) |
+| right, bottom | accelerate (green pedal), brake / reverse (red pedal), use power-up (burst) between them |
+| right, middle | handbrake (lever), next power-up (cycle arrow) |
 | top right | pause (Esc), **BUY** coin |
+
+**Gas and use power-up together** (e.g. nitrous needs throttle): press both with two fingers, or put your
+thumb where the two buttons meet: that spot presses both.
 
 **Buying upgrades**: press the gold BUY coin and Armour, Power and Offensive fan out around it. Hold the coin,
 slide onto one and let go, or tap the coin and then tap one. The fan closes after a buy, a touch elsewhere or

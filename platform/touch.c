@@ -35,7 +35,7 @@ extern void glide_perf(float *fps, float *game, float *gl, float *swap);
 static GLuint prog, vbo, vao;
 static GLint u_col, u_sc;
 
-typedef struct { SDL_FingerID id; int active; int btn; int mouse; } Finger;
+typedef struct { SDL_FingerID id; int active; int btn; int btn2; int mouse; } Finger;   /* btn2: chord partner */
 static Finger fingers[10];
 static int held[NB];
 static int fan_open;             /* BUY fan shown */
@@ -45,6 +45,7 @@ static int fan_force;            /* C2_FANOPEN=1: keep the fan open (screenshots
 
 static void press(int b, int down) {
     if (b < 0 || !btns[b].sc) return;
+    if ((down && held[b] == 0) || (!down && held[b] == 1)) LOG("touch %s %s", SDL_GetScancodeName(btns[b].sc), down ? "down" : "up");
     if (down) { if (held[b]++ == 0) { dinput_key(dinput_from_sdl(btns[b].sc), 1); if (btns[b].sc == SDL_SCANCODE_ESCAPE) user32_key_event(0x1B, 1); } }
     else if (held[b] > 0 && --held[b] == 0) { dinput_key(dinput_from_sdl(btns[b].sc), 0); if (btns[b].sc == SDL_SCANCODE_ESCAPE) user32_key_event(0x1B, 0); }
 }
@@ -61,8 +62,10 @@ static void layout(void) {
     btns[2]  = (Btn){a - 0.21f, 0.69f, 0.13f,  SDL_SCANCODE_KP_8,         TA_GAS,       1, 0};
     btns[3]  = (Btn){a - 0.47f, 0.84f, 0.10f,  SDL_SCANCODE_KP_2,         TA_BRAKE,     1, 0};
     btns[4]  = (Btn){a - 0.13f, 0.40f, 0.08f,  SDL_SCANCODE_SPACE,        TA_HAND,      1, 0};
-    btns[5]  = (Btn){a - 0.40f, 0.52f, 0.075f, SDL_SCANCODE_LALT,         TA_USE,       1, 0};
-    btns[6]  = (Btn){a - 0.27f, 0.42f, 0.05f,  SDL_SCANCODE_RIGHTBRACKET, TA_NEXT,      1, 0};
+    /* use power-up: in the notch between gas and brake, 0.23 from both centres, so a thumb can hold
+       gas and use together (nitrous needs throttle); the touch zone shared by both presses both */
+    btns[5]  = (Btn){a - 0.253f, 0.916f, 0.075f, SDL_SCANCODE_LALT,       TA_USE,       1, 0};
+    btns[6]  = (Btn){a - 0.40f, 0.52f, 0.06f,  SDL_SCANCODE_RIGHTBRACKET, TA_NEXT,      1, 0};
     btns[7]  = (Btn){a - 0.23f, 0.10f, 0.055f, 0,                         TA_COIN,      1, 1};   /* BUY coin, next to pause */
     btns[8]  = (Btn){0.12f,     0.47f, 0.065f, SDL_SCANCODE_BACKSPACE,    TA_REPAIR,    1, 0};
     btns[9]  = (Btn){0.32f,     0.47f, 0.065f, SDL_SCANCODE_INSERT,       TA_RECOVER,   1, 0};
@@ -89,6 +92,19 @@ static int hit(float x, float y, int race) {
     return best;
 }
 
+/* gas + use power-up form a chord: a touch inside both buttons' touch zones presses both */
+enum { B_GAS = 2, B_USE = 5 };
+static int chord_of(int b, float x, float y) {
+    int o = b == B_GAS ? B_USE : b == B_USE ? B_GAS : -1;
+    if (o < 0) return -1;
+    float dx = x - btns[o].x, dy = y - btns[o].y;
+    return sqrtf(dx * dx + dy * dy) < btns[o].r * 1.25f ? o : -1;
+}
+static void set_chord(Finger *f, int c) {
+    if (c == f->btn2) return;
+    press(f->btn2, 0); f->btn2 = c; press(c, 1);
+}
+
 void touch_init(void) {
     perf_on = getenv("C2_PERF") != NULL;
     fan_force = getenv("C2_FANOPEN") != NULL;
@@ -101,7 +117,10 @@ void touch_init(void) {
 }
 
 static void release_all(void) {
-    for (int i = 0; i < 10; i++) if (fingers[i].active && fingers[i].btn >= 0) { press(fingers[i].btn, 0); fingers[i].btn = -1; }
+    for (int i = 0; i < 10; i++) if (fingers[i].active) {
+        if (fingers[i].btn2 >= 0) { press(fingers[i].btn2, 0); fingers[i].btn2 = -1; }
+        if (fingers[i].btn >= 0) { press(fingers[i].btn, 0); fingers[i].btn = -1; }
+    }
 }
 
 /* called by the platform layer: active = a controller was connected or used (1), or the last one removed (0) */
@@ -125,7 +144,7 @@ void touch_event(SDL_Event *e) {
         if (slot < 0) return;
         Finger *f = &fingers[slot];
         f->active = 1; f->id = e->tfinger.fingerId;
-        f->btn = -1; f->mouse = 0;
+        f->btn = -1; f->btn2 = -1; f->mouse = 0;
         if (pad_mode) {
             touch_gamepad(0);
             if (race) return;           /* in a race the first touch only brings the buttons back */
@@ -135,7 +154,7 @@ void touch_event(SDL_Event *e) {
         if (fan_open && (f->btn < 0 || btns[f->btn].kind != 2)) fan_open = 0;   /* a touch elsewhere closes it */
         if (f->btn >= 0 && btns[f->btn].kind == 2) fan_until = SDL_GetTicks() + 400;  /* buy, then close */
         if (perf_on && y < 0.07f && x < 1.0f) { plat_cycle_fps_cap(); f->btn = -1; return; }   /* tap the readout: next frame rate cap */
-        if (f->btn >= 0) { press(f->btn, 1); return; }
+        if (f->btn >= 0) { press(f->btn, 1); set_chord(f, chord_of(f->btn, x, y)); return; }
         if (!race) {
             /* menus: the touch is the mouse */
             int gx, gy;
@@ -157,10 +176,14 @@ void touch_event(SDL_Event *e) {
             }
             if (f->btn >= 0 && btns[f->btn].kind == 2) return;
             /* sliding a finger between buttons (e.g. steer left -> right) */
-            if (b != f->btn && b >= 0 && btns[b].race_only && btns[b].kind == 0) { press(f->btn, 0); f->btn = b; press(b, 1); }
+            if (b != f->btn && b >= 0 && btns[b].race_only && btns[b].kind == 0) {
+                if (b == f->btn2) { f->btn2 = f->btn; f->btn = b; }        /* slid onto the chord partner: keep both */
+                else { press(f->btn, 0); f->btn = b; press(b, 1); }
+            }
+            if (f->btn >= 0) set_chord(f, chord_of(f->btn, x, y));
             else if (b < 0 && f->btn >= 0) {
                 float dx = x - btns[f->btn].x, dy = y - btns[f->btn].y;
-                if (sqrtf(dx * dx + dy * dy) > btns[f->btn].r * 2.0f) { press(f->btn, 0); f->btn = -1; }
+                if (sqrtf(dx * dx + dy * dy) > btns[f->btn].r * 2.0f) { set_chord(f, -1); press(f->btn, 0); f->btn = -1; }
             }
         } else { /* up */
             if (f->mouse && glide_to_game(e->tfinger.x, e->tfinger.y, &gx, &gy)) user32_mouse_event(gx, gy, 0, 2);
@@ -169,6 +192,7 @@ void touch_event(SDL_Event *e) {
                 fan_open = 0;
             } else if (f->btn == B_COIN) fan_until = SDL_GetTicks() + 3000;
             fan_hover = -1;
+            set_chord(f, -1);
             press(f->btn, 0);
             f->active = 0; f->btn = -1; f->mouse = 0;
         }
@@ -189,6 +213,7 @@ void touch_tick(void) {
     if (fan_force && race) fan_open = 1;
     if (race != last_race) {
         for (int i = 0; i < 10; i++) if (fingers[i].active && fingers[i].btn >= 0 && btns[fingers[i].btn].race_only && !race) {
+            if (fingers[i].btn2 >= 0) { press(fingers[i].btn2, 0); fingers[i].btn2 = -1; }
             press(fingers[i].btn, 0); fingers[i].btn = -1;
         }
         last_race = race;
