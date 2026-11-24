@@ -18,6 +18,25 @@
 #define VBO_BYTES (8u << 20)
 
 typedef struct { float x, y, z, r, g, b, ooz, a, oow, sow, tow, oow0; } GVtx;   /* first 12 floats of GrVertex */
+/* widescreen race HUD layout (HUD pixels, 640x480 space):
+   the head-up map (drawn by the game into the LFB at about 558,416-619,469) moves to the top-left
+   corner of the screen at twice its size; the held power-up (icon, time left and name on a dark
+   panel at about 4,345-144,394, widening to x 396 while cycling, which ended up under the steering
+   buttons) moves between the repair/recover touch
+   buttons and the steering arrows, against the left screen edge. The timed power-ups' column above it stays where it is */
+#define MAP_X0 556
+#define MAP_Y0 414
+#define MAP_X1 622
+#define MAP_Y1 472
+#define MAP_SCALE 2
+#define HUD_MARGIN 4
+#define POW_Y0 340
+#define POW_Y1 400.5f
+#define POW_X1 420     /* the whole selector strip: it widens to about x 396 while cycling power-ups */
+/* top of the held power-up / selector strip: in the gap between the repair and recover touch buttons
+   (bottom edge at 0.535 of the screen height) and the steering arrows (top edge at 0.67) */
+#define POW_TOP 262
+
 typedef struct { float x, y, d, oow, r, g, b, a, s, t, q, rawoow; } HVtx;   /* rawoow: the vertex's 1/w as the game gave it */
 
 typedef struct {
@@ -609,6 +628,13 @@ static void flush_(void) {
                 stretch = 1;                     /* (2D fills leave the hint alone and w unset) */
                 for (int i = 0; i < G.nv; i++) if (!(G.v[i].rawoow > 1e-5f && G.v[i].rawoow < 1e4f)) { stretch = 0; break; }
             }
+            if (!stretch && G.depth_mode && G.nv) {
+                /* world draws without the perspective hint (skid marks, sparks, smoke): depth-tested with a
+                   real, varying 1/w per vertex. HUD pieces carry w = 1 or garbage */
+                float w0 = 1e9f, w1 = -1e9f; int ok = 1;
+                for (int i = 0; i < G.nv; i++) { float w = G.v[i].rawoow; if (!(w > 1e-5f && w < 1e4f)) { ok = 0; break; } if (w < w0) w0 = w; if (w > w1) w1 = w; }
+                if (ok && w1 - w0 > 1e-5f) stretch = 1;
+            }
             if (stretch) G.frame_3d = 1;
             else if (!G.frame_3d && G.depth_mode && G.depth_mask)
                 stretch = 2;                     /* backdrop: 2D tiles drawn before the 3D scene (the sky, in any number of batches) */
@@ -618,8 +644,34 @@ static void flush_(void) {
                 stretch = x0 <= 1.0f && x1 >= G.gw - 1.0f;
             }
         }
+        {   /* C2_FINDDECAL: log race draws left in 4:3 that carry real per-vertex 1/w (world decals?) */
+            static int fd = -1; if (fd < 0) fd = getenv("C2_FINDDECAL") != NULL;
+            if (fd && G.race_wide && !stretch) {
+                float w0 = 1e9f, w1 = -1e9f, x0 = 1e9f, x1 = -1e9f, y0 = 1e9f, y1 = -1e9f;
+                for (int i = 0; i < G.nv; i++) { float w = G.v[i].rawoow; if (w < w0) w0 = w; if (w > w1) w1 = w;
+                    if (G.v[i].x < x0) x0 = G.v[i].x; if (G.v[i].x > x1) x1 = G.v[i].x; if (G.v[i].y < y0) y0 = G.v[i].y; if (G.v[i].y > y1) y1 = G.v[i].y; }
+                if (w0 > 1e-5f && w1 < 1e4f && w1 - w0 > 1e-4f)
+                    LOG("DECAL f=%u n=%d stw=%x depth=%d/%d/%d blend=%d/%d tc=%d tex=%x oow=%g..%g bbox=%.0f,%.0f-%.0f,%.0f",
+                        G.frames, G.nv, G.stw_hint, G.depth_mode, G.depth_func, G.depth_mask, G.blend_s, G.blend_d, G.tc_mode, G.src_addr, w0, w1, x0, y0, x1, y1);
+            }
+        }
+        {   static int hl = -1, nl; if (hl < 0) hl = getenv("C2_HUDLOG") != NULL;
+            if (hl && G.race_wide && !stretch && nl < 4000) {
+                float x0 = 1e9f, x1 = -1e9f, y0 = 1e9f, y1 = -1e9f;
+                for (int i = 0; i < G.nv; i++) { if (G.v[i].x < x0) x0 = G.v[i].x; if (G.v[i].x > x1) x1 = G.v[i].x; if (G.v[i].y < y0) y0 = G.v[i].y; if (G.v[i].y > y1) y1 = G.v[i].y; }
+                if (x1 < 200 && y0 > 100 && y1 < 440) { nl++; LOG("HUD left f=%u n=%d tc=%d tex=%x bbox=%.0f,%.0f-%.0f,%.0f", G.frames, G.nv, G.tc_mode, G.src_addr, x0, y0, x1, y1); }
+            }
+        }
         cm->st.xf[0] = stretch ? G.wide_k : 1.0f;
         cm->st.xf[1] = stretch ? G.vw / 2.0f - G.gw / 2.0f * G.wide_k : G.xoff;
+        if (G.race_wide && !stretch && G.nv) {   /* the held power-up: move it under the head-up map */
+            float x0 = 1e9f, x1 = -1e9f, y0 = 1e9f, y1 = -1e9f;
+            for (int i = 0; i < G.nv; i++) { if (G.v[i].x < x0) x0 = G.v[i].x; if (G.v[i].x > x1) x1 = G.v[i].x; if (G.v[i].y < y0) y0 = G.v[i].y; if (G.v[i].y > y1) y1 = G.v[i].y; }
+            if (x0 >= -1 && x1 <= POW_X1 && y0 >= POW_Y0 && y1 <= POW_Y1) {
+                for (int i = 0; i < G.nv; i++) G.v[i].y += POW_TOP - (POW_Y0 + 5);
+                cm->st.xf[1] = HUD_MARGIN;
+            }
+        }
         cm->backdrop = stretch == 2;
         if (cm->backdrop) {
             cm->bx0 = 1e9f; cm->bx1 = -1e9f;
@@ -727,7 +779,10 @@ static void present_(void) {
     gs_reset();
     /* a frame with plenty of depth-written triangles is a race (vs. menus / videos) */
     G.in3d = G.tri3d > 40;
-    G.race_wide = G.in3d && G.wide_k > 1.001f && widen_cameras();
+    /* widescreen race treatment only while the race loop runs: menus, the pause screen and the
+       post-race wrecks gallery also draw 3D (and have their own LFB content) */
+    { extern int game_racing(void);
+      G.race_wide = G.in3d && G.wide_k > 1.001f && game_racing() && widen_cameras(); }
     {
         static int env = -1, n3d;
         if (env < 0) env = getenv("C2_RACEDUMP") != NULL;
@@ -882,7 +937,7 @@ static void lfb_overlay_(void) {
     lfb_dirty = 0;
     uint32_t *rgba = (uint32_t *)G.lfbbuf;
     /* convert the written pixels and find the rows that changed */
-    int y0 = G.gh, y1 = -1;
+    int y0 = G.gh, y1 = -1, bx0 = G.gw, bx1 = -1;
     for (int y = 0; y < G.gh; y++) {
         uint32_t row = LFB_AT(0, y);
         uint32_t *dst = rgba + (size_t)y * G.gw;
@@ -890,7 +945,7 @@ static void lfb_overlay_(void) {
         for (int x = 0; x < G.gw; x++) {
             uint16_t v = gr16(row + x * 2);
             if (v == LFB_KEY) { dst[x] = 0; continue; }
-            rowany = 1;
+            rowany = 1; if (x < bx0) bx0 = x; if (x > bx1) bx1 = x;
             uint32_t r = (v >> 11) * 255 / 31, g = ((v >> 5) & 63) * 255 / 63, b = (v & 31) * 255 / 31;
             dst[x] = (lfb_bgr ? b | (r << 16) : r | (b << 16)) | (g << 8) | 0xff000000u;
             gw16(row + x * 2, LFB_KEY);
@@ -899,6 +954,8 @@ static void lfb_overlay_(void) {
     }
     if (y1 < 0) return;
     if (race_dump == 1) LOG("RD LFB overlay rows %d-%d", y0, y1);
+    { static int hl = -1, n; if (hl < 0) hl = getenv("C2_HUDLOG") != NULL;
+      if (hl && G.race_wide && n++ % 120 == 0) LOG("HUD lfb bbox %d,%d-%d,%d", bx0, y0, bx1, y1); }
     /* the texture keeps its contents between frames: upload only the rows written now */
     static int tex_ready;
     glBindTexture(GL_TEXTURE_2D, G.lfbtex);
@@ -920,14 +977,28 @@ static void lfb_overlay_(void) {
        opponent's condition bar, part of the centred lower HUD panel) stays where it is */
     float v0 = (float)y0 / G.gh, v1 = (float)(y1 + 1) / G.gh;
     float top = 1 - v0 * 2, bot = 1 - v1 * 2;
-    int parts = G.race_wide ? 2 : 1;
-    for (int k = 0; k < parts; k++) {
-        float u0 = parts == 1 ? 0 : (k ? 2 / 3.0f : 0), u1 = parts == 1 ? 1 : (k ? 1 : 2 / 3.0f);
-        float off = parts == 1 || !k ? G.xoff : 2 * G.xoff;
-        float l = (off + u0 * G.gw) / G.vw * 2 - 1, r = (off + u1 * G.gw) / G.vw * 2 - 1;
-        float q[16] = { l, top, u0, v0,  r, top, u1, v0,  l, bot, u0, v1,  r, bot, u1, v1 };
+    if (!G.race_wide) {
+        float l = G.xoff / G.vw * 2 - 1, r = (G.xoff + G.gw) / G.vw * 2 - 1;
+        float q[16] = { l, top, 0, v0,  r, top, 1, v0,  l, bot, 0, v1,  r, bot, 1, v1 };
         glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof q, q);
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    } else {
+        /* left two thirds in place (e.g. the opponent's condition bar in the lower panel) */
+        float r = (G.xoff + G.gw * 2 / 3.0f) / G.vw * 2 - 1, l = G.xoff / G.vw * 2 - 1;
+        float q[16] = { l, top, 0, v0,  r, top, 2 / 3.0f, v0,  l, bot, 0, v1,  r, bot, 2 / 3.0f, v1 };
+        glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof q, q);
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+        /* the head-up map: top-left corner of the screen, MAP_SCALE times its size */
+        int my0 = y0 > MAP_Y0 ? y0 : MAP_Y0, my1 = y1 + 1 < MAP_Y1 ? y1 + 1 : MAP_Y1;
+        if (my0 < my1) {
+            float dx0 = HUD_MARGIN, dx1 = HUD_MARGIN + (MAP_X1 - MAP_X0) * MAP_SCALE;
+            float dy0 = HUD_MARGIN + (my0 - MAP_Y0) * MAP_SCALE, dy1 = HUD_MARGIN + (my1 - MAP_Y0) * MAP_SCALE;
+            float ml = dx0 / G.vw * 2 - 1, mr = dx1 / G.vw * 2 - 1, mt = 1 - dy0 / G.gh * 2, mb = 1 - dy1 / G.gh * 2;
+            float mu0 = (float)MAP_X0 / G.gw, mu1 = (float)MAP_X1 / G.gw, mv0 = (float)my0 / G.gh, mv1 = (float)my1 / G.gh;
+            float m[16] = { ml, mt, mu0, mv0,  mr, mt, mu1, mv0,  ml, mb, mu0, mv1,  mr, mb, mu1, mv1 };
+            glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof m, m);
+            glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+        }
     }
     gs_reset();
 }

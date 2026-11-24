@@ -19,6 +19,9 @@
 extern void dinput_key(int, int);
 extern int dinput_from_sdl(int);
 extern int glide_in_3d(void);
+extern int game_racing(void);
+/* a race: 3D on screen and the game's race loop running (menus and the wrecks gallery draw 3D too) */
+static int in_race(void) { return glide_in_3d() && game_racing(); }
 extern int glide_to_game(float sx, float sy, int *gx, int *gy);
 
 /* kind: 0 = hold button, 1 = BUY coin (opens the fan), 2 = fan item (only while the fan is open) */
@@ -61,14 +64,21 @@ static void layout(void) {
     /* right side; the bottom-right corner stays clear for the head-up map */
     btns[2]  = (Btn){a - 0.21f, 0.69f, 0.13f,  SDL_SCANCODE_KP_8,         TA_GAS,       1, 0};
     btns[3]  = (Btn){a - 0.47f, 0.84f, 0.10f,  SDL_SCANCODE_KP_2,         TA_BRAKE,     1, 0};
-    btns[4]  = (Btn){a - 0.13f, 0.40f, 0.08f,  SDL_SCANCODE_SPACE,        TA_HAND,      1, 0};
+    /* handbrake: same direction from gas as before, at the same 0.23 distance as use power-up */
+    btns[4]  = (Btn){a - 0.149f, 0.468f, 0.08f, SDL_SCANCODE_SPACE,       TA_HAND,      1, 0};
     /* use power-up: in the notch between gas and brake, 0.23 from both centres, so a thumb can hold
        gas and use together (nitrous needs throttle); the touch zone shared by both presses both */
     btns[5]  = (Btn){a - 0.253f, 0.916f, 0.075f, SDL_SCANCODE_LALT,       TA_USE,       1, 0};
     btns[6]  = (Btn){a - 0.40f, 0.52f, 0.06f,  SDL_SCANCODE_RIGHTBRACKET, TA_NEXT,      1, 0};
     btns[7]  = (Btn){a - 0.23f, 0.10f, 0.055f, 0,                         TA_COIN,      1, 1};   /* BUY coin, next to pause */
-    btns[8]  = (Btn){0.12f,     0.47f, 0.065f, SDL_SCANCODE_BACKSPACE,    TA_REPAIR,    1, 0};
-    btns[9]  = (Btn){0.32f,     0.47f, 0.065f, SDL_SCANCODE_INSERT,       TA_RECOVER,   1, 0};
+    /* repair and recover: under the head-up map (top-left corner, HUD pixels 4..136 x 4..120 of 480,
+       see win32/glide.c), as far below it as the steering arrows are above the bottom of the screen
+       (0.07), with the same gap between the two; clear of the camera cutout on the left edge */
+    {
+        const float map_l = 4 / 480.0f, map_b = 120 / 480.0f, gap = 1.0f - (0.80f + 0.13f), r = 0.065f;
+        btns[8] = (Btn){map_l + r, map_b + gap + r, r, SDL_SCANCODE_BACKSPACE, TA_REPAIR,  1, 0};
+        btns[9] = (Btn){map_l + 3 * r + gap, map_b + gap + r, r, SDL_SCANCODE_INSERT, TA_RECOVER, 1, 0};   /* same gap between them */
+    }
     btns[10] = (Btn){a - 0.09f, 0.10f, 0.055f, SDL_SCANCODE_ESCAPE,       TA_PAUSE,     0, 0};
     /* the BUY fan: on a circle around the coin, opening to the lower left, all equally spaced
        (radius 0.17 from the coin, 48 degrees apart: 0.138 between neighbours) */
@@ -92,13 +102,19 @@ static int hit(float x, float y, int race) {
     return best;
 }
 
-/* gas + use power-up form a chord: a touch inside both buttons' touch zones presses both */
-enum { B_GAS = 2, B_USE = 5 };
+/* gas + use power-up and gas + handbrake form chords: a touch inside both buttons' touch zones
+   (where they meet) presses both */
+enum { B_GAS = 2, B_HAND = 4, B_USE = 5 };
 static int chord_of(int b, float x, float y) {
-    int o = b == B_GAS ? B_USE : b == B_USE ? B_GAS : -1;
-    if (o < 0) return -1;
-    float dx = x - btns[o].x, dy = y - btns[o].y;
-    return sqrtf(dx * dx + dy * dy) < btns[o].r * 1.25f ? o : -1;
+    int cand[2], n = 0;
+    if (b == B_GAS) { cand[n++] = B_USE; cand[n++] = B_HAND; }
+    else if (b == B_USE || b == B_HAND) cand[n++] = B_GAS;
+    for (int i = 0; i < n; i++) {
+        int o = cand[i];
+        float dx = x - btns[o].x, dy = y - btns[o].y;
+        if (sqrtf(dx * dx + dy * dy) < btns[o].r * 1.25f) return o;
+    }
+    return -1;
 }
 static void set_chord(Finger *f, int c) {
     if (c == f->btn2) return;
@@ -134,7 +150,7 @@ void touch_event(SDL_Event *e) {
     if (!visible) return;
     layout();
     float x = e->tfinger.x * scr_a, y = e->tfinger.y;
-    int race = glide_in_3d();
+    int race = in_race();
     int slot = -1;
     for (int i = 0; i < 10; i++) if (fingers[i].active && fingers[i].id == e->tfinger.fingerId) slot = i;
     if (e->type == SDL_FINGERDOWN) {
@@ -207,7 +223,7 @@ static int fan_hover_held(void) {
 /* drop held buttons when switching between menus and races */
 void touch_tick(void) {
     static int last_race = -1;
-    int race = glide_in_3d();
+    int race = in_race();
     if (fan_open && !fan_hover_held() && SDL_TICKS_PASSED(SDL_GetTicks(), fan_until)) fan_open = 0;
     if (!race) fan_open = 0;
     if (fan_force && race) fan_open = 1;
@@ -339,7 +355,7 @@ void touch_draw(void) {
     glUseProgram(prog);
     glBindVertexArray(vao); glBindBuffer(GL_ARRAY_BUFFER, vbo);
     glUniform2f(u_sc, 2.0f / scr_a, 2.0f);
-    int race = glide_in_3d();
+    int race = in_race();
     if (perf_on) {
         float fps, game, gl, sw; glide_perf(&fps, &game, &gl, &sw);
         char line[96];

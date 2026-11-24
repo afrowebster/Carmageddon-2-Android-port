@@ -69,10 +69,12 @@ Both check that `CARMA2_HW.EXE` and `3dfx_win.bdd` are the tested GOG files (SHA
 
 * **Native on Android and Linux**: the game's x86 code is recompiled ahead of time to C; nothing is
   emulated at run time.
-* **Widescreen (Hor+)**: races fill the whole screen at its native aspect ratio (e.g. 20:9). The camera
-  shows more to the sides instead of stretching or cropping; the sky is rebuilt by the game for the
-  wider view. The HUD stays centred, the head-up map sits in the bottom-right corner of the screen.
-  Menus and videos are shown in 4:3.
+* **Widescreen (Hor+)**: races fill the whole screen at its native aspect ratio (e.g. 20:9), including
+  the strip beside the camera cutout. The camera shows more to the sides instead of stretching or
+  cropping; the sky is rebuilt by the game for the wider view, skid marks, sparks and smoke are drawn
+  across the full width. The HUD stays centred; the head-up map sits in the top-left corner at twice its
+  size, and the held power-up / power-up selector moves to the left edge, clear of the touch controls.
+  Menus, the pause screen, the wrecks gallery and videos are shown in 4:3.
 * **High resolution**: the game renders at 640×480 originally; here the 3D scene is rendered at a multiple
   of it to match the screen (e.g. 2136×960 on a 1080p-class phone).
 * **Frame-rate independent game logic**: the original counts every frame as at least 10 ms, so above
@@ -88,6 +90,8 @@ Both check that `CARMA2_HW.EXE` and `3dfx_win.bdd` are the tested GOG files (SHA
 * **Mobile GPU friendly renderer**: draws are batched and submitted together, with a state cache and a
   shader variant without `discard`, so tile-based phone GPUs don't stall (a Pixel 10 Pro XL runs races
   at 120+ fps unlocked).
+* **Fixed: end-of-race time bonus**: in the original, a long frame during the end-of-race tally could make
+  the timer count up and the time bonus go hugely negative (an unsigned clock comparison); patched.
 * **Crash-safe files**: files the game writes (texture caches, options, saves) are written to a temporary
   name and renamed when complete, so an app killed by Android never leaves a truncated file behind.
 
@@ -123,13 +127,13 @@ for the GPU / vsync.
 | where | button |
 |---|---|
 | left, bottom | steer left / right |
-| left, middle | repair (spanner), recover (flip arrow) |
+| top left, under the map | repair (spanner), recover (flip arrow) |
 | right, bottom | accelerate (green pedal), brake / reverse (red pedal), use power-up (burst) between them |
-| right, middle | handbrake (lever), next power-up (cycle arrow) |
+| right, middle | handbrake (lever) above the pedal, next power-up (cycle arrow) |
 | top right | pause (Esc), **BUY** coin |
 
-**Gas and use power-up together** (e.g. nitrous needs throttle): press both with two fingers, or put your
-thumb where the two buttons meet: that spot presses both.
+**Gas together with use power-up or handbrake** (e.g. nitrous needs throttle): press both with two fingers,
+or put your thumb where the two buttons meet: that spot presses both.
 
 **Buying upgrades**: press the gold BUY coin and Armour, Power and Offensive fan out around it. Hold the coin,
 slide onto one and let go, or tap the coin and then tap one. The fan closes after a buy, a touch elsewhere or

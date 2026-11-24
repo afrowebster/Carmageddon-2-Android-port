@@ -1,1 +1,2 @@
 53111f   # BRender ImageLoad: pin driver image base
+4933c1   # race loop, timer update (every race frame): marks "in a race" for the touch controls
